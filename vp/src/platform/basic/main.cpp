@@ -27,6 +27,7 @@
 #include "syscall.h"
 #include "uart.h"
 #include "util/options.h"
+#include "uart2.h"
 
 using namespace rv32;
 namespace po = boost::program_options;
@@ -69,6 +70,8 @@ class BasicOptions : public Options {
 	addr_t flash_end_addr = flash_start_addr + Flashcontroller::ADDR_SPACE;  // Usually 528 Byte
 	addr_t display_start_addr = 0x72000000;
 	addr_t display_end_addr = display_start_addr + Display::addressRange;
+	addr_t uart2_start_addr = 0x44000000;
+	addr_t uart2_end_addr = uart2_start_addr + 0x10;
 
 	bool quiet = false;
 	bool use_E_base_isa = false;
@@ -123,7 +126,7 @@ int sc_main(int argc, char **argv) {
 	SimpleTerminal term("SimpleTerminal");
 	UART uart("Generic_UART", 6);
 	ELFLoader loader(opt.input_program.c_str());
-	SimpleBus<3, 13> bus("SimpleBus");
+	SimpleBus<3, 14> bus("SimpleBus");
 	CombinedMemoryInterface iss_mem_if("MemoryInterface", core);
 	SyscallHandler sys("SyscallHandler");
 	FE310_PLIC<1, 64, 96, 32> plic("PLIC");
@@ -137,6 +140,7 @@ int sc_main(int argc, char **argv) {
 	EthernetDevice ethernet("EthernetDevice", 7, mem.data, opt.network_device);
 	Display display("Display");
 	DebugMemoryInterface dbg_if("DebugMemoryInterface");
+	uart2 uart2("uart2", 8);
 
 	MemoryDMI dmi = MemoryDMI::create_start_size_mapping(mem.data, opt.mem_start_addr, mem.size);
 	InstrMemoryProxy instr_mem(dmi, core);
@@ -192,6 +196,7 @@ int sc_main(int argc, char **argv) {
 		bus.ports[it++] = new PortMapping(opt.ethernet_start_addr, opt.ethernet_end_addr);
 		bus.ports[it++] = new PortMapping(opt.display_start_addr, opt.display_end_addr);
 		bus.ports[it++] = new PortMapping(opt.sys_start_addr, opt.sys_end_addr);
+		bus.ports[it++] = new PortMapping(opt.uart2_start_addr, opt.uart2_end_addr);
 	}
 
 	// connect TLM sockets
@@ -218,6 +223,7 @@ int sc_main(int argc, char **argv) {
 		bus.isocks[it++].bind(ethernet.tsock);
 		bus.isocks[it++].bind(display.tsock);
 		bus.isocks[it++].bind(sys.tsock);
+		bus.isocks[it++].bind(uart2.tsock);
 	}
 
 	// connect interrupt signals/communication
@@ -229,6 +235,7 @@ int sc_main(int argc, char **argv) {
 	timer.plic = &plic;
 	sensor2.plic = &plic;
 	ethernet.plic = &plic;
+	uart.plic = &plic;
 
 	std::vector<debug_target_if *> threads;
 	threads.push_back(&core);
