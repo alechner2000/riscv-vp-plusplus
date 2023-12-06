@@ -31,8 +31,8 @@ struct uart2 : public sc_core::sc_module
     uint32_t irq_number = 0;
     sc_core::sc_event run_event;
 
-    //FixedQueue<char, 8> rx_fifo;
-    //FixedQueue<char, 8> tx_fifo;
+    FixedQueue<char, 8> rx_fifo;
+    FixedQueue<char, 8> tx_fifo;
 //
     //// memory mapped data frame
     //std::array<char, 8> rx_data;
@@ -70,10 +70,10 @@ struct uart2 : public sc_core::sc_module
 
     void transport(tlm::tlm_generic_payload &trans, sc_core::sc_time &delay)
     {
-        //auto addr = trans.get_address();
-		//auto cmd = trans.get_command();
-		//auto len = trans.get_data_length();
-		//auto ptr = trans.get_data_ptr();
+        auto addr = trans.get_address();
+		auto cmd = trans.get_command();
+		auto len = trans.get_data_length();
+		auto ptr = trans.get_data_ptr();
 
         printf("test");
 
@@ -84,7 +84,11 @@ struct uart2 : public sc_core::sc_module
 
     void run()
     {
-
+        while(true)
+        {
+            sc_core::wait(sc_core::sc_time(32000, sc_core::SC_NS));
+            //create random data
+        }
     }
 //    {
 //        while(true)
