@@ -71,7 +71,7 @@ class BasicOptions : public Options {
 	addr_t display_start_addr = 0x72000000;
 	addr_t display_end_addr = display_start_addr + Display::addressRange;
 	addr_t uart2_start_addr = 0x44000000;
-	addr_t uart2_end_addr = uart2_start_addr + 0x10;
+	addr_t uart2_end_addr = uart2_start_addr + 0x0F;
 
 	bool quiet = false;
 	bool use_E_base_isa = false;
@@ -140,7 +140,7 @@ int sc_main(int argc, char **argv) {
 	EthernetDevice ethernet("EthernetDevice", 7, mem.data, opt.network_device);
 	Display display("Display");
 	DebugMemoryInterface dbg_if("DebugMemoryInterface");
-	uart2 uart2("uart2", 8);
+	uart2 uart2("uart2", 9);
 
 	MemoryDMI dmi = MemoryDMI::create_start_size_mapping(mem.data, opt.mem_start_addr, mem.size);
 	InstrMemoryProxy instr_mem(dmi, core);
