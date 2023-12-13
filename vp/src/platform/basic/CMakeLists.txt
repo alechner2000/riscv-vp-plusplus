@@ -14,3 +14,12 @@ add_executable(riscv-vp
 target_link_libraries(riscv-vp rv32 platform-basic platform-common gdb-mc ${Boost_LIBRARIES} systemc pthread)
 
 INSTALL(TARGETS riscv-vp RUNTIME DESTINATION bin)
+
+
+add_executable(riscv-vp4Canny
+        main4Canny.cpp)
+
+target_link_libraries(riscv-vp4Canny rv32 platform-basic platform-common gdb-mc ${Boost_LIBRARIES} systemc pthread)
+
+INSTALL(TARGETS riscv-vp4Canny RUNTIME DESTINATION bin)
+
