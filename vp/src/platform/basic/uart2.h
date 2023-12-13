@@ -5,23 +5,44 @@
 
 #include <systemc>
 #include <cstdlib>
-#include <queue>
-#include <iostream>
+#include <cstring>
 
 #include "core/common/irq_if.h"
 
-template <typename T, int MaxLen, typename Container=std::deque<T>>
-    class FixedQueue : public std::queue<T, Container> 
-    {
-        public:
-        void push(const T& value) 
-        {
-            if (this->size() == MaxLen) {
-            this->c.pop_front();
-            }
-            std::queue<T, Container>::push(value);
-        }
-    };
+#define FIFO_FAIL 0
+#define FIFO_SUCCESS 1
+#define FIFO_SIZE 8
+
+struct FIFO {
+	uint8_t data[FIFO_SIZE];
+	uint8_t read;
+	uint8_t write;
+	uint8_t size;
+
+	uint8_t push(uint8_t byte) {
+		if (size == FIFO_SIZE)
+			return FIFO_FAIL;
+
+		data[write++] = byte;
+		write %= FIFO_SIZE;
+		size++;
+		return FIFO_SUCCESS;
+	}
+
+	uint8_t pop(uint8_t *pByte) {
+		if (size == 0)
+			return FIFO_FAIL;
+
+		*pByte = data[read++];
+		read %= FIFO_SIZE;
+		size--;
+		return FIFO_SUCCESS;
+	}
+
+	uint8_t isFull() {
+		return size >= FIFO_SIZE;
+	}
+};
 
 struct uart2 : public sc_core::sc_module
 {
@@ -29,14 +50,9 @@ struct uart2 : public sc_core::sc_module
     
     interrupt_gateway *plic = 0;
     uint32_t irq_number = 0;
-    sc_core::sc_event run_event;
 
-    FixedQueue<char, 8> rx_fifo;
-    FixedQueue<char, 8> tx_fifo;
-//
-    //// memory mapped data frame
-    //std::array<char, 8> rx_data;
-    //std::array<char, 8> tx_data;
+    FIFO rx_fifo;
+    FIFO tx_fifo;
 
     // memory mapped configuration registers
     u_int32_t tx_data = 0;
@@ -75,9 +91,28 @@ struct uart2 : public sc_core::sc_module
 		auto len = trans.get_data_length();
 		auto ptr = trans.get_data_ptr();
 
-        printf("test");
+        assert(len == 4);
+        auto it = addr_to_reg.find(addr);
+        assert(it != addr_to_reg.end());    // access to non-mapped address
 
-        (void)delay;
+        if (addr <= RX_DATA_REG_ADDR && cmd == tlm::TLM_WRITE_COMMAND)
+			return; // ignore write to rx_data
+		
+		//trigger pre read actions
+        if (addr == RX_DATA_REG_ADDR && cmd == tlm::TLM_READ_COMMAND)
+        {
+            uint8_t c = 0;
+            rx_data = (!rx_fifo.pop(&c) << 31) | c;
+        }
+
+		// actual read/write
+		if (cmd == tlm::TLM_READ_COMMAND) {
+			*((uint32_t *)ptr) = *it->second;
+		} else if (cmd == tlm::TLM_WRITE_COMMAND) {
+			*it->second = *((uint32_t *)ptr);
+		} else {
+			assert(false && "unsupported tlm command for uart access");
+		}
     }
 
 
@@ -88,17 +123,10 @@ struct uart2 : public sc_core::sc_module
         {
             sc_core::wait(sc_core::sc_time(32000, sc_core::SC_NS));
             //create random data
+            rx_fifo.push(rand() % 26 + 65);
+			plic->gateway_trigger_interrupt(irq_number);
         }
     }
-//    {
-//        while(true)
-//        {
-//            run_event.notify(sc_core::sc_time(scaler, sc_core::SC_NS))
-//            sc_core::wait(32000, sc_core::SC_NS);
-//
-//        }
-//    }
-//
 };
 
 
